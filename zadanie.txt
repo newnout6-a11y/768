@@ -1,0 +1,31 @@
+Цель:
+Скрипт c:\Users\Redmi\Downloads\768\notion-ai-model-picker.user.js успешно работает в Notion AI (https://app.notion.com).
+Задача — детально проанализировать и внедрить максимальную скрытность (anti-detection / stealth) для скрипта, чтобы Notion и его встроенные системы телеметрии, мониторинга и антифрода не могли обнаружить присутствие скрипта и модификацию запросов.
+ВАЖНО: Ничего не сломать! Вся функциональность (выбор моделей, reasoning effort, поиск, кастомные модели, динамический харвестинг) должна работать на 100%.
+
+Векторы скрытности для анализа и реализации:
+1. Маскировка перехвата функций (Native Function Spoofing):
+   - window.fetch, XMLHttpRequest.prototype.open, XMLHttpRequest.prototype.send.
+   - Function.prototype.toString должен возвращать "function fetch() { [native code] }" и т.д.
+   - Proxy / Symbol.toStringTag / Object.getOwnPropertyDescriptor маскировка, чтобы инспекция не выдавала обёртку.
+   - Защита стека вызовов (clean stack traces): ошибки не должны содержать следы расширения/userscript в Error.captureStackTrace / new Error().stack.
+
+2. Изоляция хранилища (Storage Stealth):
+   - Сейчас ключи сохраняются в window.localStorage под префиксом __nai*. Любой скрипт Notion может прочитать localStorage и увидеть эти ключи.
+   - Реализовать скрытное хранилище: либо GM_getValue/GM_setValue (с переходом на @grant GM_getValue, GM_setValue), либо обфускация ключей, чтобы в window.localStorage не было палевных маркеров.
+
+3. DOM и стили (DOM Footprint & Anti-Fingerprinting):
+   - Селекторы #nai-model-host, #nai-model-menu, .nai-* легко детектятся через document.querySelector('[id^="nai"]').
+   - Сделать защиту: Shadow DOM (closed mode) или генерация динамических / неприметных классов и атрибутов, мимикрирующих под нативные классы Notion.
+   - Стили вставлять незаметно, избегая явных ID.
+
+4. Маскировка сетевых запросов:
+   - При подмене payload (patchAiConfig) не оставлять артефактов, проверять валидность структуры, не добавлять лишних неожиданных полей.
+   - Фоновые запросы probeModelList: не спамить, делать редкими и не привлекающими внимания телеметрии.
+
+5. Защита от телеметрии и краш-репортеров Notion:
+   - Изолировать логику перехватчиков через try/catch так, чтобы любые внутренние сбои никогда не просачивались в window.onerror или Notion Sentry/Datadog SDK.
+   - Убрать или защитить отладочные console.log в прод-режиме.
+
+Результат:
+Внести все необходимые улучшения прямо в c:\Users\Redmi\Downloads\768\notion-ai-model-picker.user.js, убедиться в целостности кода и составить детальный отчёт.

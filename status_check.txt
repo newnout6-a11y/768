@@ -1,0 +1,1 @@
+Проверь текущий статус задачи из zadanie.txt, заверши запись обновлённого скрипта c:\Users\Redmi\Downloads\768\notion-ai-model-picker.user.js и пришли отчёт о внедрении скрытности.

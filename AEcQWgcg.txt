@@ -1,0 +1,2983 @@
+// ==UserScript==
+// @name         Notion AI Model Picker Loader
+// @namespace    local.notion.ai.model-picker.anysite
+// @version      1.2.3
+// @description  Loads Notion AI model picker without key UI
+// @match        *://*/*
+// @run-at       document-start
+// @noframes
+// @grant        GM_xmlhttpRequest
+// @grant        GM.xmlHttpRequest
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        GM.getValue
+// @grant        GM.setValue
+// @grant        GM.addElement
+// @grant        unsafeWindow
+// @connect      154.86.119.99
+// ==/UserScript==
+
+(function () {
+  'use strict';
+
+  const KEY = '__naiModel';
+  const EFFORT_KEY = '__naiEffort';
+  const CACHE_KEY = '__naiModelCache_v1.2.3';
+
+  const MODEL_HOST_ID = 'nai-model-host';
+  const EFFORT_HOST_ID = 'nai-effort-host';
+  const MODEL_MENU_ID = 'nai-model-menu';
+  const EFFORT_MENU_ID = 'nai-effort-menu';
+  const STYLE_ID = 'nai-picker-style';
+  const MIC_SELECTOR =
+    '[data-testid="unified-chat-start-recording-button"]';
+
+  const FALLBACK_EFFORTS = ['low', 'medium', 'high', 'max'];
+
+  const HARDCODED_MODELS = [
+    {
+      id: 'anthropic-haiku-4.5',
+      label: 'Haiku 4.5',
+      provider: 'Claude',
+      disabled: false,
+      reason: '',
+      uiSelectable: false,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: null,
+      stats: null
+    },
+    {
+      id: 'avocado-froyo-medium',
+      label: 'Opus 4.6',
+      provider: 'Claude',
+      disabled: false,
+      reason: '',
+      uiSelectable: false,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: 'medium',
+      stats: null
+    },
+    {
+      id: 'apricot-sorbet-high',
+      label: 'Opus 4.7',
+      provider: 'Claude',
+      disabled: false,
+      reason: '',
+      uiSelectable: false,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: 'high',
+      stats: null
+    },
+    {
+      id: 'ambrosia-tart-high',
+      label: 'Opus 4.8',
+      provider: 'Claude',
+      disabled: false,
+      reason: '',
+      uiSelectable: false,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: 'high',
+      stats: null
+    },
+    {
+      id: 'agave-flan',
+      label: 'Opus 5',
+      provider: 'Claude',
+      disabled: false,
+      reason: '',
+      uiSelectable: false,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: null,
+      stats: null
+    },
+    {
+      id: 'almond-croissant-low',
+      label: 'Sonnet 4.6',
+      provider: 'Claude',
+      disabled: false,
+      reason: '',
+      uiSelectable: false,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: 'low',
+      stats: null
+    },
+    {
+      id: 'angel-cake-high',
+      label: 'Sonnet 5',
+      provider: 'Claude',
+      disabled: false,
+      reason: '',
+      uiSelectable: false,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: 'high',
+      stats: null
+    },
+    {
+      id: 'baseten-deepseek-v4-flash',
+      label: 'DeepSeek V4 Flash',
+      provider: 'deepseek',
+      disabled: false,
+      reason: '',
+      uiSelectable: false,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: null,
+      stats: null
+    },
+    {
+      id: 'baseten-deepseek-v4-pro',
+      label: 'DeepSeek V4 Pro',
+      provider: 'deepseek',
+      disabled: false,
+      reason: '',
+      uiSelectable: false,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: null,
+      stats: null
+    },
+    {
+      id: 'baseten-deepseek-v4.1-flash',
+      label: 'DeepSeek V4.1 Flash',
+      provider: 'deepseek',
+      disabled: false,
+      reason: '',
+      uiSelectable: false,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: null,
+      stats: null
+    },
+    {
+      id: 'gingerbread',
+      label: 'Gemini 3 Flash',
+      provider: 'Gemini',
+      disabled: false,
+      reason: '',
+      uiSelectable: false,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: null,
+      stats: null
+    },
+    {
+      id: 'galette-medium-thinking',
+      label: 'Gemini 3.1 Pro',
+      provider: 'Gemini',
+      disabled: false,
+      reason: '',
+      uiSelectable: false,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: 'medium',
+      stats: null
+    },
+    {
+      id: 'vertex-gemini-3.5-flash',
+      label: 'Gemini 3.5 Flash',
+      provider: 'Gemini',
+      disabled: false,
+      reason: '',
+      uiSelectable: false,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: null,
+      stats: null
+    },
+    {
+      id: 'vertex-gemini-3.6-flash',
+      label: 'Gemini 3.6 Flash',
+      provider: 'Gemini',
+      disabled: false,
+      reason: '',
+      uiSelectable: false,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: null,
+      stats: null
+    },
+    {
+      id: 'grapefruit-zeppole',
+      label: 'Gemini 3.7 Flash',
+      provider: 'Gemini',
+      disabled: false,
+      reason: '',
+      uiSelectable: false,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: null,
+      stats: null
+    },
+    {
+      id: 'baseten-glm-5.2',
+      label: 'GLM 5.2',
+      provider: 'glm',
+      disabled: false,
+      reason: '',
+      uiSelectable: false,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: null,
+      stats: null
+    },
+    {
+      id: 'baseten-glm-5.3',
+      label: 'GLM 5.3',
+      provider: 'glm',
+      disabled: false,
+      reason: '',
+      uiSelectable: false,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: null,
+      stats: null
+    },
+    {
+      id: 'baseten-glm-5.3-flash',
+      label: 'GLM 5.3 Flash',
+      provider: 'glm',
+      disabled: false,
+      reason: '',
+      uiSelectable: false,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: null,
+      stats: null
+    },
+    {
+      id: 'oatmeal-cookie',
+      label: 'GPT-5.2',
+      provider: 'GPT',
+      disabled: false,
+      reason: '',
+      uiSelectable: false,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: null,
+      stats: null
+    },
+    {
+      id: 'oval-kumquat-medium',
+      label: 'GPT-5.4',
+      provider: 'GPT',
+      disabled: false,
+      reason: '',
+      uiSelectable: false,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: 'medium',
+      stats: null
+    },
+    {
+      id: 'oregon-grape-medium',
+      label: 'GPT-5.4 Mini',
+      provider: 'GPT',
+      disabled: false,
+      reason: '',
+      uiSelectable: false,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: 'medium',
+      stats: null
+    },
+    {
+      id: 'otaheite-apple-medium',
+      label: 'GPT-5.4 Nano',
+      provider: 'GPT',
+      disabled: false,
+      reason: '',
+      uiSelectable: false,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: 'medium',
+      stats: null
+    },
+    {
+      id: 'opal-quince-medium',
+      label: 'GPT-5.5',
+      provider: 'GPT',
+      disabled: false,
+      reason: '',
+      uiSelectable: false,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: 'medium',
+      stats: null
+    },
+    {
+      id: 'olive-jellyroll',
+      label: 'GPT-5.6 Luna',
+      provider: 'GPT',
+      disabled: false,
+      reason: '',
+      uiSelectable: false,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: null,
+      stats: null
+    },
+    {
+      id: 'orange-mousse',
+      label: 'GPT-5.6 Sol',
+      provider: 'GPT',
+      disabled: false,
+      reason: '',
+      uiSelectable: false,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: null,
+      stats: null
+    },
+    {
+      id: 'orchid-muffin',
+      label: 'GPT-5.6 Terra',
+      provider: 'GPT',
+      disabled: false,
+      reason: '',
+      uiSelectable: false,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: null,
+      stats: null
+    },
+    {
+      id: 'orlando-quinn',
+      label: 'GPT-6 Astra',
+      provider: 'GPT',
+      disabled: false,
+      reason: '',
+      uiSelectable: true,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: null,
+      stats: null
+    },
+    {
+      id: 'omodi',
+      label: 'GPT-6 Luna',
+      provider: 'GPT',
+      disabled: false,
+      reason: '',
+      uiSelectable: false,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: null,
+      stats: null
+    },
+    {
+      id: 'fireworks-kimi-k3',
+      label: 'Kimi K3',
+      provider: 'Kimi',
+      disabled: false,
+      reason: '',
+      uiSelectable: false,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: null,
+      stats: null
+    },
+    {
+      id: 'xigua-mochi-medium',
+      label: 'Grok 4.3',
+      provider: 'xai',
+      disabled: false,
+      reason: '',
+      uiSelectable: false,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: 'medium',
+      stats: null
+    },
+    {
+      id: 'strawberry-whoopiepie',
+      label: 'Grok 4.5',
+      provider: 'xai',
+      disabled: false,
+      reason: '',
+      uiSelectable: false,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: null,
+      stats: null
+    },
+    {
+      id: 'soursop-shortcake',
+      label: 'Grok 4.6',
+      provider: 'xai',
+      disabled: false,
+      reason: '',
+      uiSelectable: false,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: null,
+      stats: null
+    },
+    {
+      id: 'xinomavro-cake',
+      label: 'Grok Build 0.1',
+      provider: 'xai',
+      disabled: false,
+      reason: '',
+      uiSelectable: false,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: null,
+      stats: null
+    },
+    {
+      id: 'acai-budino-high',
+      label: 'Fable 5',
+      provider: 'Claude',
+      disabled: false,
+      reason: '',
+      uiSelectable: true,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: 'high',
+      stats: null
+    },
+    {
+      id: 'assam-chai',
+      label: 'Fable 5.1',
+      provider: 'Claude',
+      disabled: false,
+      reason: '',
+      uiSelectable: true,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: null,
+      stats: null
+    },
+    {
+      id: 'albuquerque-quinn',
+      label: 'Opus 5.5',
+      provider: 'Claude',
+      disabled: false,
+      reason: '',
+      uiSelectable: true,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: null,
+      stats: null
+    },
+    {
+      id: 'onico',
+      label: 'GPT-6 Sol',
+      provider: 'GPT',
+      disabled: false,
+      reason: '',
+      uiSelectable: true,
+      efforts: ['low', 'medium', 'high', 'max'],
+      defaultEffort: null,
+      stats: null
+    }
+  ];
+
+  let MODELS = [...HARDCODED_MODELS];
+  let mountScheduled = false;
+  let probing = false;
+
+  try {
+    const cached = JSON.parse(
+      localStorage.getItem(CACHE_KEY) || '[]'
+    );
+    if (Array.isArray(cached) && cached.length) {
+      MODELS = cached;
+    } else {
+      localStorage.setItem(
+        CACHE_KEY,
+        JSON.stringify(HARDCODED_MODELS)
+      );
+    }
+  } catch {
+    MODELS = [...HARDCODED_MODELS];
+  }
+
+  console.log(
+    '[ModelPicker] Initialized with ' +
+      MODELS.length +
+      ' preloaded models (always active):',
+    MODELS
+  );
+
+  // ---------------------------------------------------------------------------
+  // State
+  // ---------------------------------------------------------------------------
+
+  const selectedModelId = () =>
+    localStorage.getItem(KEY);
+
+  const modelById = (id) =>
+    id
+      ? MODELS.find((m) => m.id === id) || null
+      : null;
+
+  function readEfforts() {
+    try {
+      const parsed = JSON.parse(
+        localStorage.getItem(EFFORT_KEY) || '{}'
+      );
+
+      return parsed &&
+        typeof parsed === 'object'
+        ? parsed
+        : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function availableEfforts() {
+    const model = modelById(selectedModelId());
+
+    if (model && model.efforts.length) {
+      return model.efforts;
+    }
+
+    return FALLBACK_EFFORTS;
+  }
+
+  function defaultEffort() {
+    const model = modelById(selectedModelId());
+    return model?.defaultEffort || null;
+  }
+
+  function currentEffort() {
+    const id = selectedModelId();
+
+    if (!id) return null;
+
+    const saved = readEfforts()[id];
+    const options = availableEfforts();
+
+    if (saved && options.includes(saved)) {
+      return saved;
+    }
+
+    return defaultEffort();
+  }
+
+  function setEffort(effort) {
+    const id = selectedModelId();
+
+    if (!id) return;
+
+    const all = readEfforts();
+
+    if (effort) {
+      all[id] = effort;
+    } else {
+      delete all[id];
+    }
+
+    localStorage.setItem(
+      EFFORT_KEY,
+      JSON.stringify(all)
+    );
+  }
+
+  const titleCase = (value) =>
+    String(value).charAt(0).toUpperCase() +
+    String(value).slice(1);
+
+  // ---------------------------------------------------------------------------
+  // Backend routing
+  // ---------------------------------------------------------------------------
+
+  function getBackendModelId(uiModelId) {
+    if (!uiModelId) return null;
+
+    const selected = modelById(uiModelId);
+
+    if (
+      selected &&
+      (
+        /astra/i.test(selected.id) ||
+        /astra/i.test(selected.label)
+      )
+    ) {
+      const backend = MODELS.find(
+        (m) =>
+          /terra/i.test(m.id) ||
+          /terra/i.test(m.label)
+      );
+
+      if (backend) {
+        return backend.id;
+      }
+    }
+
+    return uiModelId;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Fetch interception
+  // ---------------------------------------------------------------------------
+
+  const originalFetch = window.fetch;
+
+  window.fetch = async function (input, init) {
+    const url =
+      typeof input === 'string'
+        ? input
+        : (input && input.url) || '';
+
+    let patchedConfig = false;
+
+    try {
+      const selectedUiModel =
+        selectedModelId();
+
+      const model =
+        getBackendModelId(selectedUiModel);
+
+      const effort =
+        currentEffort();
+
+      if (
+        model &&
+        init &&
+        typeof init.body === 'string' &&
+        init.body.includes('"config"')
+      ) {
+        const body =
+          JSON.parse(init.body);
+
+        let changed = false;
+
+        const patchConfig = (value) => {
+          if (
+            !value ||
+            typeof value !== 'object'
+          ) {
+            return;
+          }
+
+          if (
+            value.type === 'config' &&
+            value.value &&
+            typeof value.value === 'object' &&
+            'model' in value.value
+          ) {
+            value.value.model = model;
+            value.value.modelFromUser = true;
+
+            if (effort) {
+              value.value.reasoningEffort =
+                effort;
+
+              value.value.effort =
+                effort;
+            }
+
+            changed = true;
+          }
+
+          for (
+            const child of
+            Object.values(value)
+          ) {
+            if (Array.isArray(child)) {
+              child.forEach(patchConfig);
+            } else if (
+              child &&
+              typeof child === 'object'
+            ) {
+              patchConfig(child);
+            }
+          }
+        };
+
+        patchConfig(body);
+
+        if (changed) {
+          init = {
+            ...init,
+            body: JSON.stringify(body),
+          };
+
+          patchedConfig = true;
+
+          console.log(
+            '[ModelPicker] [Request Patched] URL:',
+            url,
+            '| model:',
+            model,
+            '| effort:',
+            effort || 'default',
+            '| Body:',
+            body
+          );
+        }
+      }
+    } catch (error) {
+      console.warn(
+        '[ModelPicker] request patch failed:',
+        error
+      );
+    }
+
+    const response =
+      await originalFetch.call(
+        this,
+        input,
+        init
+      );
+
+    const isModelUrl =
+      /availablemodels/i.test(url) ||
+      /getavailablemodels/i.test(url) ||
+      /getaiavailablemodels/i.test(url);
+
+    if (isModelUrl) {
+      const statusInfo = `[Status: ${response.status} ${response.statusText}]`;
+      console.log(`[ModelPicker] [Fetch Response - Models] ${url} ${statusInfo}`);
+      try {
+        const clone = response.clone();
+        const contentType = clone.headers.get('content-type') || '';
+
+        if (contentType.includes('application/json')) {
+          clone.json().then((json) => {
+            console.log(
+              `[ModelPicker] [Fetch Response Data (JSON)] ${url}:`,
+              json
+            );
+            harvestModels(json);
+          }).catch((err) => {
+            console.warn(`[ModelPicker] Failed to parse models JSON from ${url}:`, err);
+          });
+        } else {
+          clone.text().then((text) => {
+            let parsed = null;
+            try {
+              parsed = JSON.parse(text);
+            } catch {}
+            console.log(
+              `[ModelPicker] [Fetch Response Data] ${url}:`,
+              parsed || text
+            );
+            if (parsed) {
+              harvestModels(parsed);
+            }
+          }).catch((err) => {
+            console.warn(`[ModelPicker] Failed to read models text from ${url}:`, err);
+          });
+        }
+      } catch (error) {
+        console.warn(
+          `[ModelPicker] Could not clone/read response from ${url}:`,
+          error
+        );
+      }
+    } else if (
+      patchedConfig ||
+      /\/api\/v3\/(runAi|getAi|ai)/i.test(url)
+    ) {
+      const statusInfo = `[Status: ${response.status} ${response.statusText}]`;
+      console.log(
+        `[ModelPicker] [Fetch Response - AI Endpoint] ${url} ${statusInfo}`
+      );
+      try {
+        const clone = response.clone();
+        const contentType = clone.headers.get('content-type') || '';
+
+        if (contentType.includes('application/json')) {
+          clone.json().then((json) => {
+            console.log(
+              `[ModelPicker] [Fetch Response AI Data (JSON)] ${url}:`,
+              json
+            );
+          }).catch((e) => {
+            console.warn(
+              `[ModelPicker] Could not parse AI response JSON from ${url}:`,
+              e
+            );
+          });
+        } else {
+          clone.text().then((text) => {
+            let parsed = null;
+            try {
+              parsed = JSON.parse(text);
+            } catch {}
+            console.log(
+              `[ModelPicker] [Fetch Response AI Data] ${url} (length: ${text.length}):`,
+              parsed || (text.length > 5000 ? text.slice(0, 5000) + '... [truncated]' : text)
+            );
+          }).catch((e) => {
+            console.warn(
+              `[ModelPicker] Could not read AI response text from ${url}:`,
+              e
+            );
+          });
+        }
+      } catch (err) {
+        console.warn(
+          `[ModelPicker] Could not clone AI response from ${url}:`,
+          err
+        );
+      }
+    }
+
+    return response;
+  };
+
+  // ---------------------------------------------------------------------------
+  // XHR interception
+  // ---------------------------------------------------------------------------
+
+  const XhrOpen =
+    XMLHttpRequest.prototype.open;
+
+  XMLHttpRequest.prototype.open =
+    function (
+      method,
+      requestUrl,
+      ...rest
+    ) {
+      this.__naiUrl =
+        String(requestUrl || '');
+      this.__naiMethod =
+        String(method || 'GET');
+
+      return XhrOpen.call(
+        this,
+        method,
+        requestUrl,
+        ...rest
+      );
+    };
+
+  const XhrSend =
+    XMLHttpRequest.prototype.send;
+
+  XMLHttpRequest.prototype.send =
+    function (...args) {
+      const url = String(this.__naiUrl || '');
+      const isModelRequest =
+        /availablemodels/i.test(url) ||
+        /getavailablemodels/i.test(url) ||
+        /getaiavailablemodels/i.test(url);
+
+      if (isModelRequest) {
+        console.log(
+          `[ModelPicker] [XHR Request] ${this.__naiMethod} ${url} | Payload:`,
+          args[0]
+        );
+      }
+
+      this.addEventListener(
+        'load',
+        () => {
+          if (!isModelRequest) {
+            return;
+          }
+
+          console.log(
+            `[ModelPicker] [XHR Response] ${url} [Status: ${this.status} ${this.statusText}]`
+          );
+
+          try {
+            const data = JSON.parse(this.responseText);
+            console.log(
+              `[ModelPicker] [XHR Response Data (JSON)] ${url}:`,
+              data
+            );
+            harvestModels(data);
+          } catch (err) {
+            console.log(
+              `[ModelPicker] [XHR Response Raw Text] ${url}:`,
+              this.responseText
+            );
+          }
+        }
+      );
+
+      this.addEventListener(
+        'error',
+        (err) => {
+          if (isModelRequest) {
+            console.error(
+              `[ModelPicker] [XHR Network Error] ${url}:`,
+              err
+            );
+          }
+        }
+      );
+
+      return XhrSend.apply(
+        this,
+        args
+      );
+    };
+
+  // ---------------------------------------------------------------------------
+  // Probe model list
+  // ---------------------------------------------------------------------------
+
+  async function probeModelList() {
+    if (MODELS && MODELS.length) {
+      console.log(
+        '[ModelPicker] [Probe] Models are embedded directly in code (' +
+          MODELS.length +
+          ' models). Network probing skipped.'
+      );
+      return;
+    }
+
+    if (probing) return;
+
+    probing = true;
+    console.log('[ModelPicker] [Probe] Starting probeModelList to fetch available models from server...');
+
+    const paths = [
+      '/api/v3/getAvailableModels',
+      '/api/v3/getAiAvailableModels',
+      '/api/v3/ai/getAvailableModels',
+    ];
+
+    const guessedSpaceId = spaceIdGuess();
+    console.log('[ModelPicker] [Probe] Guessed spaceId:', guessedSpaceId);
+
+    for (const path of paths) {
+      for (
+        const body of [
+          '{}',
+          JSON.stringify({
+            spaceId: guessedSpaceId,
+          }),
+        ]
+      ) {
+        try {
+          console.log(`[ModelPicker] [Probe Request] POST ${path} | Body:`, body);
+          const response =
+            await originalFetch.call(
+              window,
+              path,
+              {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                  'content-type':
+                    'application/json',
+                },
+                body,
+              }
+            );
+
+          let respText = '';
+          try {
+            respText = await response.text();
+          } catch (textErr) {
+            console.warn(`[ModelPicker] [Probe] Could not read response text from ${path}:`, textErr);
+          }
+
+          let data = null;
+          try {
+            data = JSON.parse(respText);
+          } catch {
+            data = null;
+          }
+
+          console.log(
+            `[ModelPicker] [Probe Response] POST ${path} [Status: ${response.status} ${response.statusText}]:`,
+            data !== null ? data : respText
+          );
+
+          if (!response.ok) {
+            console.warn(
+              `[ModelPicker] [Probe] Server returned non-OK status ${response.status} for ${path}:`,
+              data !== null ? data : respText
+            );
+            continue;
+          }
+
+          if (data) {
+            const before =
+              MODELS.length;
+
+            harvestModels(data);
+
+            if (
+              MODELS.length > before ||
+              MODELS.length
+            ) {
+              console.log(
+                '[ModelPicker] [Probe Success] Model list successfully loaded from',
+                path,
+                '| Total models:',
+                MODELS.length
+              );
+
+              probing = false;
+              return;
+            } else {
+              console.warn(
+                `[ModelPicker] [Probe] Server returned OK from ${path}, but no models could be parsed.`
+              );
+            }
+          }
+        } catch (err) {
+          console.error(`[ModelPicker] [Probe Error] Network exception for ${path}:`, err);
+        }
+      }
+    }
+
+    console.warn(
+      '[ModelPicker] Could not load the model list from probe paths; reload the AI chat'
+    );
+
+    probing = false;
+  }
+
+  function spaceIdGuess() {
+    const match =
+      document.cookie.match(
+        /spaceId=([0-9a-f-]{36})/i
+      );
+
+    if (match) return match[1];
+
+    for (
+      let index = 0;
+      index < localStorage.length;
+      index += 1
+    ) {
+      const key =
+        localStorage.key(index) || '';
+
+      const found =
+        key.match(
+          /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i
+        );
+
+      if (found) {
+        return found[1];
+      }
+    }
+
+    return undefined;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Model list
+  // ---------------------------------------------------------------------------
+
+  function findModelArray(
+    value,
+    seen = new WeakSet()
+  ) {
+    if (
+      !value ||
+      typeof value !== 'object' ||
+      seen.has(value)
+    ) {
+      return null;
+    }
+
+    seen.add(value);
+
+    if (
+      Array.isArray(value.models) &&
+      value.models.some(
+        (item) =>
+          item &&
+          typeof item === 'object' &&
+          item.model
+      )
+    ) {
+      return value.models;
+    }
+
+    for (
+      const child of Object.values(value)
+    ) {
+      if (
+        child &&
+        typeof child === 'object'
+      ) {
+        const found =
+          findModelArray(
+            child,
+            seen
+          );
+
+        if (found) {
+          return found;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  function providerLabel(item) {
+    const raw =
+      String(
+        item.modelProvider ||
+        item.modelFamily ||
+        item.provider ||
+        'Other'
+      ).trim();
+
+    const known = {
+      anthropic: 'Claude',
+      claude: 'Claude',
+      openai: 'GPT',
+      gpt: 'GPT',
+      google: 'Gemini',
+      gemini: 'Gemini',
+      moonshot: 'Kimi',
+      kimi: 'Kimi',
+      fireworks: 'Other',
+    };
+
+    return (
+      known[
+        raw.toLowerCase()
+      ] || raw
+    );
+  }
+
+  function harvestModels(data) {
+    console.log(
+      '[ModelPicker] [harvestModels] Server response data received:',
+      data
+    );
+
+    const list =
+      findModelArray(data);
+
+    if (
+      !list ||
+      !list.length
+    ) {
+      console.warn(
+        '[ModelPicker] [harvestModels] No models found in server response data:',
+        data
+      );
+      return;
+    }
+
+    console.log(
+      '[ModelPicker] [harvestModels] Extracted models array (' +
+        list.length +
+        ' items):',
+      list
+    );
+
+    const unique =
+      new Map();
+
+    for (
+      const item of list
+    ) {
+      if (
+        !item ||
+        !item.model
+      ) {
+        continue;
+      }
+
+      const config =
+        item.modelConfiguration ||
+        {};
+
+      const modelId =
+        String(item.model);
+
+      const modelLabel =
+        String(
+          item.modelMessage ||
+          item.displayName ||
+          item.model
+        );
+
+      const isAstra =
+        /astra/i.test(modelId) ||
+        /astra/i.test(modelLabel);
+
+      unique.set(
+        modelId,
+        {
+          id: modelId,
+
+          label: modelLabel,
+
+          provider:
+            providerLabel(item),
+
+          /*
+           * All models are enabled and selectable in the picker.
+           */
+          disabled: false,
+
+          reason: '',
+
+          uiSelectable: true,
+
+          efforts:
+            Array.isArray(
+              config.supportedReasoningEfforts
+            )
+              ? config
+                  .supportedReasoningEfforts
+                  .filter(Boolean)
+              : [],
+
+          defaultEffort:
+            config.defaultReasoningEffort ||
+            null,
+
+          stats:
+            item.modelCardAttributes ||
+            null,
+        }
+      );
+    }
+
+    MODELS =
+      [...unique.values()].sort(
+        (a, b) =>
+          Number(a.disabled) -
+            Number(b.disabled) ||
+          a.provider.localeCompare(
+            b.provider
+          ) ||
+          a.label.localeCompare(
+            b.label
+          )
+      );
+
+    try {
+      localStorage.setItem(
+        CACHE_KEY,
+        JSON.stringify(MODELS)
+      );
+    } catch {
+      /* ignore */
+    }
+
+    console.log(
+      '[ModelPicker] [harvestModels] Successfully loaded',
+      MODELS.length,
+      'models (' +
+        MODELS.filter((m) => !m.disabled).length +
+        ' available, ' +
+        MODELS.filter((m) => m.disabled).length +
+        ' disabled):',
+      MODELS
+    );
+
+    renderModelList();
+    renderEffortMenu();
+    updateControls();
+  }
+
+  // ---------------------------------------------------------------------------
+  // CSS
+  // ---------------------------------------------------------------------------
+
+  const css = `
+    #${MODEL_HOST_ID},
+    #${EFFORT_HOST_ID} {
+      position: relative;
+      display: flex !important;
+      align-items: center;
+      flex: 0 0 auto;
+      min-width: 0;
+      z-index: 2;
+      visibility: visible !important;
+      opacity: 1 !important;
+      pointer-events: auto !important;
+      font-family: ui-sans-serif,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+    }
+
+    .nai-trigger {
+      box-sizing: border-box;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      height: 28px;
+      border: 0;
+      border-radius: 999px;
+      color: var(
+        --c-texSec,
+        rgba(55,53,47,.65)
+      );
+      background: transparent;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1;
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .nai-trigger:hover,
+    .nai-trigger[aria-expanded="true"] {
+      background: var(
+        --c-bacIntHov,
+        rgba(55,53,47,.08)
+      );
+      color: var(
+        --c-texPri,
+        rgb(55,53,47)
+      );
+    }
+
+    .nai-trigger:focus-visible {
+      outline: 2px solid
+        var(
+          --c-bluBdrAccPri,
+          #2383e2
+        );
+      outline-offset: 2px;
+    }
+
+    #nai-effort-trigger {
+      width: 28px;
+      padding: 0;
+    }
+
+    #nai-effort-trigger .nai-bars {
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+      height: 14px;
+    }
+
+    #nai-effort-trigger .nai-bars i {
+      width: 3px;
+      border-radius: 1px;
+      background: currentColor;
+      opacity: .28;
+    }
+
+    #nai-effort-trigger
+      .nai-bars
+      i.on {
+      opacity: 1;
+    }
+
+    #nai-effort-trigger
+      .nai-bars
+      i:nth-child(1) {
+      height: 5px;
+    }
+
+    #nai-effort-trigger
+      .nai-bars
+      i:nth-child(2) {
+      height: 8px;
+    }
+
+    #nai-effort-trigger
+      .nai-bars
+      i:nth-child(3) {
+      height: 11px;
+    }
+
+    #nai-effort-trigger
+      .nai-bars
+      i:nth-child(4) {
+      height: 14px;
+    }
+
+    #nai-model-trigger {
+      max-width: 190px;
+      padding: 0 10px;
+      background: var(
+        --c-bacInt,
+        rgba(55,53,47,.06)
+      );
+    }
+
+    #nai-model-trigger
+      .nai-model-label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .nai-chevron {
+      width: 12px;
+      height: 12px;
+      flex: 0 0 auto;
+      fill: currentColor;
+    }
+
+    .nai-popover {
+      position: fixed;
+      z-index: 2147483647;
+      display: none;
+      flex-direction: column;
+      padding: 6px;
+      border: 1px solid var(
+        --c-bdrSec,
+        rgba(55,53,47,.12)
+      );
+      border-radius: 12px;
+      color: var(
+        --c-texPri,
+        rgb(55,53,47)
+      );
+      background: var(
+        --c-bacPri,
+        #fff
+      );
+      box-shadow:
+        0 12px 32px
+          rgba(15,15,15,.18),
+        0 2px 8px
+          rgba(15,15,15,.08);
+      font-family: ui-sans-serif,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+      pointer-events: auto;
+    }
+
+    .nai-popover.open {
+      display: flex;
+    }
+
+    #${MODEL_MENU_ID} {
+      width: min(
+        370px,
+        calc(100vw - 24px)
+      );
+      max-height: min(
+        560px,
+        calc(100vh - 24px)
+      );
+    }
+
+    #${EFFORT_MENU_ID} {
+      width: min(
+        240px,
+        calc(100vw - 24px)
+      );
+    }
+
+    #nai-model-search {
+      box-sizing: border-box;
+      width: 100%;
+      height: 34px;
+      margin: 0 0 4px;
+      padding: 0 10px;
+      border: 1px solid var(
+        --c-bdrSec,
+        rgba(55,53,47,.12)
+      );
+      border-radius: 7px;
+      outline: none;
+      color: var(
+        --c-texPri,
+        rgb(55,53,47)
+      );
+      background: var(
+        --c-bacSec,
+        rgba(242,241,238,.6)
+      );
+      font: inherit;
+      font-size: 14px;
+    }
+
+    #nai-model-search:focus {
+      border-color: var(
+        --c-bluBdrAccPri,
+        #2383e2
+      );
+      box-shadow:
+        0 0 0 1px
+          var(
+            --c-bluBdrAccPri,
+            #2383e2
+          );
+    }
+
+    #nai-model-list {
+      overflow: auto;
+      overscroll-behavior: contain;
+    }
+
+    .nai-section-label {
+      padding: 11px 10px 5px;
+      color: var(
+        --c-texTer,
+        rgba(55,53,47,.5)
+      );
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .nai-separator {
+      height: 1px;
+      margin: 5px 8px;
+      background: var(
+        --c-bdrSec,
+        rgba(55,53,47,.10)
+      );
+    }
+
+    .nai-row {
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      min-height: 40px;
+      padding: 7px 10px;
+      border: 0;
+      border-radius: 8px;
+      color: inherit;
+      background: transparent;
+      text-align: left;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .nai-row:hover,
+    .nai-row:focus-visible,
+    .nai-row.active {
+      background: var(
+        --c-bacIntHov,
+        rgba(55,53,47,.08)
+      );
+      outline: none;
+    }
+
+    .nai-row:disabled {
+      opacity: .42;
+      cursor: not-allowed;
+    }
+
+    .nai-row-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      flex: 0 0 22px;
+      color: var(
+        --c-texSec,
+        rgba(55,53,47,.65)
+      );
+      font-size: 17px;
+    }
+
+    .nai-row-copy {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .nai-row-name {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      overflow: hidden;
+      color: var(
+        --c-texPri,
+        rgb(55,53,47)
+      );
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 20px;
+      white-space: nowrap;
+    }
+
+    .nai-row-name > span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .nai-badge {
+      flex: 0 0 auto;
+      padding: 1px 6px;
+      border-radius: 4px;
+      color: var(
+        --c-texTer,
+        rgba(55,53,47,.55)
+      );
+      background: var(
+        --c-bacSec,
+        rgba(55,53,47,.08)
+      );
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .nai-row-meta {
+      overflow: hidden;
+      margin-top: 1px;
+      color: var(
+        --c-texTer,
+        rgba(55,53,47,.5)
+      );
+      font-size: 12px;
+      line-height: 16px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .nai-row-check {
+      width: 18px;
+      flex: 0 0 18px;
+      color: var(
+        --c-texPri,
+        rgb(55,53,47)
+      );
+      font-size: 18px;
+      visibility: hidden;
+    }
+
+    .nai-row.active
+      .nai-row-check {
+      visibility: visible;
+    }
+
+    .nai-empty {
+      padding: 16px 12px;
+      color: var(
+        --c-texTer,
+        rgba(55,53,47,.5)
+      );
+      font-size: 13px;
+      line-height: 18px;
+      text-align: center;
+    }
+  `;
+
+  function installStyle() {
+    if (
+      document.getElementById(
+        STYLE_ID
+      ) ||
+      !document.head
+    ) {
+      return;
+    }
+
+    const style =
+      document.createElement(
+        'style'
+      );
+
+    style.id = STYLE_ID;
+    style.textContent = css;
+
+    document.head.appendChild(
+      style
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Icons / triggers
+  // ---------------------------------------------------------------------------
+
+  function chevron() {
+    const svg =
+      document.createElementNS(
+        'http://www.w3.org/2000/svg',
+        'svg'
+      );
+
+    svg.setAttribute(
+      'class',
+      'nai-chevron'
+    );
+
+    svg.setAttribute(
+      'viewBox',
+      '0 0 12 12'
+    );
+
+    svg.setAttribute(
+      'aria-hidden',
+      'true'
+    );
+
+    const path =
+      document.createElementNS(
+        'http://www.w3.org/2000/svg',
+        'path'
+      );
+
+    path.setAttribute(
+      'd',
+      'M2.2 4.25a.65.65 0 0 1 .92 0L6 7.13l2.88-2.88a.65.65 0 1 1 .92.92L6.46 8.51a.65.65 0 0 1-.92 0L2.2 5.17a.65.65 0 0 1 0-.92Z'
+    );
+
+    svg.appendChild(path);
+
+    return svg;
+  }
+
+  function buildEffortHost() {
+    const host =
+      document.createElement('div');
+
+    host.id =
+      EFFORT_HOST_ID;
+
+    const button =
+      document.createElement(
+        'button'
+      );
+
+    button.id =
+      'nai-effort-trigger';
+
+    button.className =
+      'nai-trigger';
+
+    button.type = 'button';
+
+    button.setAttribute(
+      'aria-label',
+      'Change thinking effort'
+    );
+
+    button.setAttribute(
+      'aria-haspopup',
+      'dialog'
+    );
+
+    button.setAttribute(
+      'aria-expanded',
+      'false'
+    );
+
+    const bars =
+      document.createElement('span');
+
+    bars.className =
+      'nai-bars';
+
+    for (
+      let i = 0;
+      i < 4;
+      i += 1
+    ) {
+      bars.appendChild(
+        document.createElement('i')
+      );
+    }
+
+    button.appendChild(bars);
+
+    button.addEventListener(
+      'click',
+      (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        togglePopover(
+          EFFORT_MENU_ID
+        );
+      }
+    );
+
+    host.appendChild(button);
+
+    return host;
+  }
+
+  function buildModelHost() {
+    const host =
+      document.createElement('div');
+
+    host.id =
+      MODEL_HOST_ID;
+
+    const button =
+      document.createElement(
+        'button'
+      );
+
+    button.id =
+      'nai-model-trigger';
+
+    button.className =
+      'nai-trigger';
+
+    button.type = 'button';
+
+    button.setAttribute(
+      'aria-label',
+      'Change AI model'
+    );
+
+    button.setAttribute(
+      'aria-haspopup',
+      'dialog'
+    );
+
+    button.setAttribute(
+      'aria-expanded',
+      'false'
+    );
+
+    const label =
+      document.createElement('span');
+
+    label.className =
+      'nai-model-label';
+
+    label.textContent =
+      'Auto';
+
+    button.append(
+      label,
+      chevron()
+    );
+
+    button.addEventListener(
+      'click',
+      (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        togglePopover(
+          MODEL_MENU_ID
+        );
+      }
+    );
+
+    host.appendChild(button);
+
+    return host;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Menus
+  // ---------------------------------------------------------------------------
+
+  function buildModelMenu() {
+    const menu =
+      document.createElement('div');
+
+    menu.id =
+      MODEL_MENU_ID;
+
+    menu.className =
+      'nai-popover';
+
+    menu.setAttribute(
+      'role',
+      'dialog'
+    );
+
+    menu.setAttribute(
+      'aria-label',
+      'AI model'
+    );
+
+    const search =
+      document.createElement(
+        'input'
+      );
+
+    search.id =
+      'nai-model-search';
+
+    search.type =
+      'search';
+
+    search.placeholder =
+      'Search models…';
+
+    search.autocomplete =
+      'off';
+
+    search.spellcheck =
+      false;
+
+    search.addEventListener(
+      'input',
+      () =>
+        renderModelList(
+          search.value
+        )
+    );
+
+    search.addEventListener(
+      'keydown',
+      (event) => {
+        if (
+          event.key ===
+          'Escape'
+        ) {
+          closeAll();
+        }
+      }
+    );
+
+    const list =
+      document.createElement(
+        'div'
+      );
+
+    list.id =
+      'nai-model-list';
+
+    list.setAttribute(
+      'role',
+      'listbox'
+    );
+
+    menu.addEventListener(
+      'click',
+      (event) =>
+        event.stopPropagation()
+    );
+
+    menu.append(
+      search,
+      list
+    );
+
+    document.body.appendChild(
+      menu
+    );
+
+    return menu;
+  }
+
+  function buildEffortMenu() {
+    const menu =
+      document.createElement('div');
+
+    menu.id =
+      EFFORT_MENU_ID;
+
+    menu.className =
+      'nai-popover';
+
+    menu.setAttribute(
+      'role',
+      'dialog'
+    );
+
+    menu.setAttribute(
+      'aria-label',
+      'Thinking effort'
+    );
+
+    const label =
+      document.createElement(
+        'div'
+      );
+
+    label.className =
+      'nai-section-label';
+
+    label.textContent =
+      'Effort';
+
+    const list =
+      document.createElement(
+        'div'
+      );
+
+    list.id =
+      'nai-effort-list';
+
+    list.setAttribute(
+      'role',
+      'listbox'
+    );
+
+    menu.addEventListener(
+      'click',
+      (event) =>
+        event.stopPropagation()
+    );
+
+    menu.append(
+      label,
+      list
+    );
+
+    document.body.appendChild(
+      menu
+    );
+
+    return menu;
+  }
+
+  function iconFor(model) {
+    const provider =
+      model.provider.toLowerCase();
+
+    if (
+      provider.includes('claude')
+    ) {
+      return '✳';
+    }
+
+    if (
+      provider.includes('gemini')
+    ) {
+      return '✦';
+    }
+
+    if (
+      provider.includes('gpt')
+    ) {
+      return '◉';
+    }
+
+    if (
+      provider.includes('kimi')
+    ) {
+      return '◎';
+    }
+
+    return '◌';
+  }
+
+  function statsSummary(model) {
+    if (!model.stats) return '';
+
+    const parts = [];
+
+    const {
+      intelligence,
+      speed,
+      cost,
+    } = model.stats;
+
+    if (
+      intelligence != null
+    ) {
+      parts.push(
+        `smarts ${intelligence}/5`
+      );
+    }
+
+    if (speed != null) {
+      parts.push(
+        `speed ${speed}/5`
+      );
+    }
+
+    if (cost != null) {
+      parts.push(
+        `cost ${cost}/5`
+      );
+    }
+
+    return parts.join(' · ');
+  }
+
+  function buildRow({
+    icon,
+    name,
+    badge,
+    meta,
+    active,
+    disabled,
+    title,
+    onSelect,
+  }) {
+    const row =
+      document.createElement(
+        'button'
+      );
+
+    row.type =
+      'button';
+
+    row.className =
+      `nai-row${active ? ' active' : ''}`;
+
+    row.setAttribute(
+      'role',
+      'option'
+    );
+
+    row.setAttribute(
+      'aria-selected',
+      String(Boolean(active))
+    );
+
+    if (title) {
+      row.title = title;
+    }
+
+    if (disabled) {
+      row.disabled = true;
+    }
+
+    if (icon) {
+      const iconEl =
+        document.createElement(
+          'span'
+        );
+
+      iconEl.className =
+        'nai-row-icon';
+
+      iconEl.textContent =
+        icon;
+
+      row.appendChild(
+        iconEl
+      );
+    }
+
+    const copy =
+      document.createElement(
+        'span'
+      );
+
+    copy.className =
+      'nai-row-copy';
+
+    const nameRow =
+      document.createElement(
+        'div'
+      );
+
+    nameRow.className =
+      'nai-row-name';
+
+    const nameText =
+      document.createElement(
+        'span'
+      );
+
+    nameText.textContent =
+      name;
+
+    nameRow.appendChild(
+      nameText
+    );
+
+    if (badge) {
+      const badgeEl =
+        document.createElement(
+          'span'
+        );
+
+      badgeEl.className =
+        'nai-badge';
+
+      badgeEl.textContent =
+        badge;
+
+      nameRow.appendChild(
+        badgeEl
+      );
+    }
+
+    copy.appendChild(
+      nameRow
+    );
+
+    if (meta) {
+      const metaEl =
+        document.createElement(
+          'div'
+        );
+
+      metaEl.className =
+        'nai-row-meta';
+
+      metaEl.textContent =
+        meta;
+
+      copy.appendChild(
+        metaEl
+      );
+    }
+
+    const check =
+      document.createElement(
+        'span'
+      );
+
+    check.className =
+      'nai-row-check';
+
+    check.textContent =
+      '✓';
+
+    row.append(
+      copy,
+      check
+    );
+
+    if (
+      !disabled &&
+      onSelect
+    ) {
+      row.addEventListener(
+        'click',
+        onSelect
+      );
+    }
+
+    return row;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Effort menu
+  // ---------------------------------------------------------------------------
+
+  function renderEffortMenu() {
+    const list =
+      document.getElementById(
+        'nai-effort-list'
+      );
+
+    if (!list) return;
+
+    list.replaceChildren();
+
+    if (!selectedModelId()) {
+      const note =
+        document.createElement(
+          'div'
+        );
+
+      note.className =
+        'nai-empty';
+
+      note.textContent =
+        'Pick a model first. Auto mode is controlled by Notion.';
+
+      list.appendChild(
+        note
+      );
+
+      return;
+    }
+
+    const options =
+      availableEfforts();
+
+    const active =
+      currentEffort();
+
+    const fallback =
+      defaultEffort();
+
+    for (
+      const effort of options
+    ) {
+      list.appendChild(
+        buildRow({
+          name:
+            titleCase(effort),
+
+          badge:
+            effort === fallback
+              ? 'Default'
+              : '',
+
+          active:
+            effort === active,
+
+          onSelect: () => {
+            setEffort(effort);
+
+            console.log(
+              '[ModelPicker] effort:',
+              effort
+            );
+
+            renderEffortMenu();
+            updateControls();
+            closeAll();
+          },
+        })
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Model menu
+  // ---------------------------------------------------------------------------
+
+  function renderModelList(
+    filter = ''
+  ) {
+    const list =
+      document.getElementById(
+        'nai-model-list'
+      );
+
+    if (!list) return;
+
+    list.replaceChildren();
+
+    const query =
+      filter
+        .trim()
+        .toLocaleLowerCase();
+
+    if (
+      !query ||
+      'auto'.includes(query)
+    ) {
+      list.appendChild(
+        buildRow({
+          icon: '⌁',
+          name: 'Auto',
+          meta:
+            'Balances speed, effort, and cost.',
+          active:
+            !selectedModelId(),
+
+          onSelect: () => {
+            localStorage.removeItem(
+              KEY
+            );
+
+            console.log(
+              '[ModelPicker] selected: Auto'
+            );
+
+            renderEffortMenu();
+            updateControls();
+            closeAll();
+          },
+        })
+      );
+
+      const separator =
+        document.createElement(
+          'div'
+        );
+
+      separator.className =
+        'nai-separator';
+
+      list.appendChild(
+        separator
+      );
+    }
+
+    const visible =
+      MODELS.filter(
+        (model) =>
+          `${model.label} ${model.provider} ${model.id}`
+            .toLocaleLowerCase()
+            .includes(query)
+      );
+
+    const groups =
+      new Map();
+
+    for (
+      const model of visible
+    ) {
+      if (
+        !groups.has(
+          model.provider
+        )
+      ) {
+        groups.set(
+          model.provider,
+          []
+        );
+      }
+
+      groups
+        .get(model.provider)
+        .push(model);
+    }
+
+    for (
+      const [
+        provider,
+        models,
+      ] of groups
+    ) {
+      const heading =
+        document.createElement(
+          'div'
+        );
+
+      heading.className =
+        'nai-section-label';
+
+      heading.textContent =
+        provider;
+
+      list.appendChild(
+        heading
+      );
+
+      for (
+        const model of models
+      ) {
+        const metaBits = [];
+
+        if (
+          model.efforts.length
+        ) {
+          metaBits.push(
+            `effort: ${model.efforts.join(', ')}`
+          );
+        }
+
+        const stats =
+          statsSummary(model);
+
+        if (stats) {
+          metaBits.push(stats);
+        }
+
+        /*
+         * All models are UI-selectable.
+         */
+        const uiDisabled = false;
+
+        list.appendChild(
+          buildRow({
+            icon:
+              iconFor(model),
+
+            name:
+              model.label,
+
+            meta:
+              uiDisabled
+                ? (
+                    model.reason ||
+                    'Unavailable on this plan'
+                  )
+                : (
+                    metaBits.join(
+                      ' · '
+                    ) ||
+                    model.id
+                  ),
+
+            active:
+              selectedModelId() ===
+              model.id,
+
+            disabled:
+              uiDisabled,
+
+            title:
+              uiDisabled
+                ? model.reason
+                : '',
+
+            onSelect: () => {
+              localStorage.setItem(
+                KEY,
+                model.id
+              );
+
+              console.log(
+                '[ModelPicker] selected:',
+                model.label
+              );
+
+              renderEffortMenu();
+              updateControls();
+              closeAll();
+            },
+          })
+        );
+      }
+    }
+
+    if (
+      !list.children.length
+    ) {
+      const empty =
+        document.createElement(
+          'div'
+        );
+
+      empty.className =
+        'nai-empty';
+
+      empty.textContent =
+        MODELS.length
+          ? 'No matching models.'
+          : 'Loading the model list… if it stays empty, reload the AI chat.';
+
+      list.appendChild(
+        empty
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Controls
+  // ---------------------------------------------------------------------------
+
+  function updateControls() {
+    const label =
+      document.querySelector(
+        '#nai-model-trigger .nai-model-label'
+      );
+
+    if (label) {
+      const id =
+        selectedModelId();
+
+      const model =
+        modelById(id);
+
+      const next =
+        !id
+          ? 'Auto'
+          : model
+            ? model.label
+            : id;
+
+      if (
+        label.textContent !==
+        next
+      ) {
+        label.textContent =
+          next;
+      }
+    }
+
+    const trigger =
+      document.getElementById(
+        'nai-effort-trigger'
+      );
+
+    if (trigger) {
+      const options =
+        availableEfforts();
+
+      const active =
+        currentEffort();
+
+      const index =
+        active
+          ? options.indexOf(active)
+          : -1;
+
+      const filled =
+        index < 0
+          ? 0
+          : Math.max(
+              1,
+              Math.round(
+                (
+                  (index + 1) /
+                  options.length
+                ) * 4
+              )
+            );
+
+      trigger
+        .querySelectorAll(
+          '.nai-bars i'
+        )
+        .forEach(
+          (
+            bar,
+            position
+          ) => {
+            bar.classList.toggle(
+              'on',
+              position <
+                filled
+            );
+          }
+        );
+
+      trigger.title =
+        active
+          ? `Thinking effort: ${titleCase(active)}`
+          : 'Thinking effort: controlled by Notion';
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Positioning
+  // ---------------------------------------------------------------------------
+
+  function triggerFor(menuId) {
+    return document.getElementById(
+      menuId ===
+        EFFORT_MENU_ID
+        ? 'nai-effort-trigger'
+        : 'nai-model-trigger'
+    );
+  }
+
+  function positionMenus() {
+    for (
+      const menuId of [
+        MODEL_MENU_ID,
+        EFFORT_MENU_ID,
+      ]
+    ) {
+      const menu =
+        document.getElementById(
+          menuId
+        );
+
+      const trigger =
+        triggerFor(menuId);
+
+      if (
+        !menu ||
+        !trigger ||
+        !menu.classList.contains(
+          'open'
+        )
+      ) {
+        continue;
+      }
+
+      const rect =
+        trigger.getBoundingClientRect();
+
+      const width =
+        menu.offsetWidth ||
+        280;
+
+      const height =
+        menu.offsetHeight ||
+        320;
+
+      const left =
+        Math.max(
+          12,
+          Math.min(
+            rect.right -
+              width,
+            window.innerWidth -
+              width -
+              12
+          )
+        );
+
+      const openAbove =
+        rect.top >=
+        height + 12;
+
+      const top =
+        openAbove
+          ? rect.top -
+            height -
+            8
+          : Math.min(
+              window.innerHeight -
+                height -
+                12,
+              rect.bottom +
+                8
+            );
+
+      menu.style.left =
+        `${left}px`;
+
+      menu.style.top =
+        `${Math.max(
+          12,
+          top
+        )}px`;
+    }
+  }
+
+  function closeAll() {
+    for (
+      const menuId of [
+        MODEL_MENU_ID,
+        EFFORT_MENU_ID,
+      ]
+    ) {
+      document
+        .getElementById(
+          menuId
+        )
+        ?.classList.remove(
+          'open'
+        );
+
+      triggerFor(menuId)
+        ?.setAttribute(
+          'aria-expanded',
+          'false'
+        );
+    }
+  }
+
+  function togglePopover(
+    menuId
+  ) {
+    const menu =
+      document.getElementById(
+        menuId
+      );
+
+    const isOpen =
+      menu?.classList.contains(
+        'open'
+      );
+
+    closeAll();
+
+    if (
+      isOpen ||
+      !menu
+    ) {
+      return;
+    }
+
+    if (
+      menuId ===
+      MODEL_MENU_ID
+    ) {
+      const search =
+        document.getElementById(
+          'nai-model-search'
+        );
+
+      if (search) {
+        search.value = '';
+      }
+
+      renderModelList();
+
+      if (!MODELS.length) {
+        probeModelList();
+      }
+
+      menu.classList.add(
+        'open'
+      );
+
+      triggerFor(menuId)
+        ?.setAttribute(
+          'aria-expanded',
+          'true'
+        );
+
+      positionMenus();
+
+      requestAnimationFrame(
+        positionMenus
+      );
+
+      search?.focus({
+        preventScroll: true,
+      });
+
+      return;
+    }
+
+    renderEffortMenu();
+
+    menu.classList.add(
+      'open'
+    );
+
+    triggerFor(menuId)
+      ?.setAttribute(
+        'aria-expanded',
+        'true'
+      );
+
+    positionMenus();
+
+    requestAnimationFrame(
+      positionMenus
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Mount
+  // ---------------------------------------------------------------------------
+
+  function mount() {
+    if (
+      !document.body ||
+      !document.head
+    ) {
+      return;
+    }
+
+    installStyle();
+
+    const microphone =
+      document.querySelector(
+        MIC_SELECTOR
+      ) ||
+      document.querySelector(
+        '[aria-label="Start voice recording"]'
+      ) ||
+      document
+        .querySelector(
+          'svg.microphone'
+        )
+        ?.closest(
+          '[role="button"]'
+        );
+
+    const sendButton =
+      document.querySelector(
+        '[data-testid="agent-send-message-button"]'
+      ) ||
+      document.querySelector(
+        '[aria-label="Submit AI message"]'
+      );
+
+    if (
+      !microphone &&
+      !sendButton
+    ) {
+      return;
+    }
+
+    const anchor =
+      microphone
+        ? (
+            microphone.closest(
+              '[data-popup-origin="true"]'
+            ) ||
+            microphone
+          )
+        : sendButton;
+
+    const actionsRow =
+      anchor?.parentElement;
+
+    if (
+      !anchor ||
+      !actionsRow
+    ) {
+      return;
+    }
+
+    const modelHost =
+      document.getElementById(
+        MODEL_HOST_ID
+      ) ||
+      buildModelHost();
+
+    const effortHost =
+      document.getElementById(
+        EFFORT_HOST_ID
+      ) ||
+      buildEffortHost();
+
+    // [effort] [model] [microphone] [send]
+
+    if (
+      modelHost.parentElement !==
+        actionsRow ||
+      modelHost.nextSibling !==
+        anchor
+    ) {
+      actionsRow.insertBefore(
+        modelHost,
+        anchor
+      );
+    }
+
+    if (
+      effortHost.parentElement !==
+        actionsRow ||
+      effortHost.nextSibling !==
+        modelHost
+    ) {
+      actionsRow.insertBefore(
+        effortHost,
+        modelHost
+      );
+
+      console.log(
+        '[ModelPicker] controls mounted in the composer toolbar'
+      );
+    }
+
+    if (
+      !document.getElementById(
+        MODEL_MENU_ID
+      )
+    ) {
+      buildModelMenu();
+    }
+
+    if (
+      !document.getElementById(
+        EFFORT_MENU_ID
+      )
+    ) {
+      buildEffortMenu();
+    }
+
+    updateControls();
+
+    if (!MODELS.length) {
+      probeModelList();
+    }
+  }
+
+  function scheduleMount() {
+    if (mountScheduled) {
+      return;
+    }
+
+    mountScheduled = true;
+
+    requestAnimationFrame(
+      () => {
+        mountScheduled =
+          false;
+
+        mount();
+      }
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Global events
+  // ---------------------------------------------------------------------------
+
+  document.addEventListener(
+    'click',
+    closeAll,
+    true
+  );
+
+  document.addEventListener(
+    'keydown',
+    (event) => {
+      if (
+        event.key ===
+        'Escape'
+      ) {
+        closeAll();
+      }
+    }
+  );
+
+  window.addEventListener(
+    'resize',
+    positionMenus,
+    {
+      passive: true,
+    }
+  );
+
+  window.addEventListener(
+    'scroll',
+    positionMenus,
+    {
+      passive: true,
+      capture: true,
+    }
+  );
+
+  if (
+    document.readyState ===
+    'loading'
+  ) {
+    document.addEventListener(
+      'DOMContentLoaded',
+      mount,
+      {
+        once: true,
+      }
+    );
+  } else {
+    mount();
+  }
+
+  new MutationObserver(
+    scheduleMount
+  ).observe(
+    document.documentElement,
+    {
+      childList: true,
+      subtree: true,
+    }
+  );
+
+  console.log(
+    '[ModelPicker] loaded; waiting for getAvailableModels…'
+  );
+})();
